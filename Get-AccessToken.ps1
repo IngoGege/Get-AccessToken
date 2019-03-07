@@ -14,10 +14,11 @@ https://developer.microsoft.com/en-us/graph/docs/concepts/auth_v2_user
 https://tools.ietf.org/rfc/rfc6749.txt
 https://blogs.msdn.microsoft.com/aaddevsup/2018/04/18/query-string-is-not-allowed-in-redirect_uri-for-azure-ad/
 https://tools.ietf.org/html/rfc6819#section-5.2.3.5
+https://ingogegenwarth.wordpress.com/2019/03/07/oauth-get-accesstoken/
 
 .DESCRIPTION
 
-The purpose of the script is to retrieve an AcceesToken from AzureAD. There script supports several scenarios
+The purpose of the script is to retrieve an AcceesToken from AzureAD. There script supports several flows.
 
 .PARAMETER UserPrincipalName
 

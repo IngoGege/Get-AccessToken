@@ -106,3 +106,4 @@ If you want to parse an existing AccessToken, just provide the value of the toke
 ### https://tools.ietf.org/rfc/rfc6749.txt
 ### https://blogs.msdn.microsoft.com/aaddevsup/2018/04/18/query-string-is-not-allowed-in-redirect_uri-for-azure-ad/
 ### https://tools.ietf.org/html/rfc6819#section-5.2.3.5
+### https://ingogegenwarth.wordpress.com/2019/03/07/oauth-get-accesstoken/
