@@ -184,7 +184,10 @@ Param
     $Tenant,
 
     [System.String]
-    $AccessToken
+    $AccessToken,
+
+    [System.Management.Automation.SwitchParameter]
+    $Silent
 )
 
 Begin
@@ -571,7 +574,7 @@ Process
                 }
 
                 # Acquire token without any flow for give UserID
-                If (($UserID -and -not $UseOnBehalfOfFlow) -and ($UserID -and -not $ClientSecret))
+                If (($UserID -and -not $UseOnBehalfOfFlow) -and ($UserID -and -not $ClientSecret) -and ($UserID -and -not $Credential))
                 {
                     Write-Verbose -Message "AcquireToken for User..."
                     # Get AccessToken
@@ -616,6 +619,11 @@ Process
                         Write-Verbose -Message "AcquireToken using ClientCredential and AuthCodeFlow..."
                         $tokenRequest = $AuthContext.AcquireTokenByAuthorizationCode($AuthCode["code"], $RedirectUri, $ClientCredential)
                     }
+                    ElseIF ($Silent)
+                    {
+                        Write-Verbose -Message "AcquireTokenSilentAsync using ClientCredential"
+                        $tokenRequest = $AuthContext.AcquireTokenSilentAsync($Resource, $ClientCredential,$UserID)
+                    }
                     # only with ClientSecret(Password)
                     Else
                     {
@@ -640,7 +648,22 @@ Process
                 }
                 Else
                 {
-                    $token = $tokenRequest.AccessToken
+                    # workaround as it seems to take a bit until the object was updated
+                    While ($tokenRequest.Status -eq 'WaitingForActivation')
+                    {
+                        Write-Verbose "Status is still WaitingForActivation. Sleeping for a second..."
+                        sleep -Seconds 1
+                    }
+                    #$tokenRequest.Result
+                    #pause
+                    If (-not [System.String]::IsNullOrEmpty($tokenRequest.Result))
+                    {
+                        $token = $tokenRequest.Result.AccessToken
+                    }
+                    Else
+                    {
+                        $token = $tokenRequest.AccessToken
+                    }
                 }
 
                 $userAssertion = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserAssertion($token,'urn:ietf:params:oauth:grant-type:jwt-bearer',$UserID)
