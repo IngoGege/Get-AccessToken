@@ -531,12 +531,14 @@ Process
                     Write-Verbose "Looks like ADALv2"
                     # define Adal PromptBehavior
                     $AdalPromptBehavior = [Microsoft.IdentityModel.Clients.ActiveDirectory.PromptBehavior]::($PromptBehavior)
+                    [System.Boolean]$higherV2 = $false
                 }
                 Else
                 {
                     Write-Verbose "Looks like ADALv3"
                     # define Adal PromptBehavior
                     $ADALPromptBehavior = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.PlatformParameters -ArgumentList $PromptBehavior
+                    [System.Boolean]$higherV2 = $true
                 }
 
                 If ($UseAuthCodeFlow)
@@ -585,9 +587,19 @@ Process
                 {
                     Write-Verbose -Message "AcquireToken using PSCredential..."
                     # Create Credential
-                    $cred = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserCredential($Credential.UserName, $Credential.Password)
-                    # Get AccessToken
-                    $tokenRequest = $AuthContext.AcquireToken($resource, $ClientId, $cred)
+                    If ($higherV2)
+                    {
+                        $cred = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserPasswordCredential($Credential.UserName, $Credential.Password)
+                        # Get AccessToken
+                        $tokenRequest =  [Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContextIntegratedAuthExtensions]::AcquireTokenAsync($AuthContext, $resource, $ClientId, $cred)
+                    }
+                    Else
+                    {
+                        $cred = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserCredential($Credential.UserName, $Credential.Password)
+                        # Get AccessToken
+                        $tokenRequest = $AuthContext.AcquireToken($resource, $ClientId, $cred)
+                    }
+                    
                 }
                 # Acquire token with certificate as ClientCredential
                 ElseIf ($Certificate)
