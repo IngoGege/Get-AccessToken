@@ -532,6 +532,7 @@ Process
                     # define Adal PromptBehavior
                     $AdalPromptBehavior = [Microsoft.IdentityModel.Clients.ActiveDirectory.PromptBehavior]::($PromptBehavior)
                     [System.Boolean]$higherV2 = $false
+                    [System.String]$Acquire = 'AcquireToken'
                 }
                 Else
                 {
@@ -539,6 +540,7 @@ Process
                     # define Adal PromptBehavior
                     $ADALPromptBehavior = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.PlatformParameters -ArgumentList $PromptBehavior
                     [System.Boolean]$higherV2 = $true
+                    [System.String]$Acquire = 'AcquireTokenAsync'
                 }
 
                 If ($UseAuthCodeFlow)
@@ -580,7 +582,7 @@ Process
                 {
                     Write-Verbose -Message "AcquireToken for User..."
                     # Get AccessToken
-                    $tokenRequest = $AuthContext.AcquireToken($resource,$clientId,$redirectUri,$ADALPromptBehavior,$UserID)
+                    $tokenRequest = $AuthContext.$($Acquire)($resource,$clientId,$redirectUri,$ADALPromptBehavior,$UserID)
                 }
                 # Acquire token for given PSCredential
                 ElseIf ($Credential)
@@ -597,7 +599,7 @@ Process
                     {
                         $cred = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserCredential($Credential.UserName, $Credential.Password)
                         # Get AccessToken
-                        $tokenRequest = $AuthContext.AcquireToken($resource, $ClientId, $cred)
+                        $tokenRequest = $AuthContext.$($Acquire)($resource, $ClientId, $cred)
                     }
                     
                 }
@@ -645,7 +647,14 @@ Process
                 Else
                 {
                     # Get AccessToken
-                    $tokenRequest = $AuthContext.AcquireToken($resource,$clientId,$redirectUri,[Microsoft.IdentityModel.Clients.ActiveDirectory.PromptBehavior]::$PromptBehavior)
+                    If ($higherV2)
+                    {
+                        $tokenRequest = $AuthContext.$($Acquire)($resource,$clientId,$redirectUri,$AdalPromptBehavior)
+                    }
+                    Else
+                    {
+                        $tokenRequest = $AuthContext.$($Acquire)($resource,$clientId,$redirectUri,[Microsoft.IdentityModel.Clients.ActiveDirectory.PromptBehavior]::$AdalPromptBehavior)
+                    }
                 }
             }
 
