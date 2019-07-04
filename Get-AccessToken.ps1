@@ -533,6 +533,7 @@ Process
                     $AdalPromptBehavior = [Microsoft.IdentityModel.Clients.ActiveDirectory.PromptBehavior]::($PromptBehavior)
                     [System.Boolean]$higherV2 = $false
                     [System.String]$Acquire = 'AcquireToken'
+                    [System.String]$AcquireByAuthCode = 'AcquireTokenByAuthorizationCode'
                 }
                 Else
                 {
@@ -541,6 +542,7 @@ Process
                     $ADALPromptBehavior = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.PlatformParameters -ArgumentList $PromptBehavior
                     [System.Boolean]$higherV2 = $true
                     [System.String]$Acquire = 'AcquireTokenAsync'
+                    [System.String]$AcquireByAuthCode = 'AcquireTokenByAuthorizationCodeAsync'
                 }
 
                 If ($UseAuthCodeFlow)
@@ -613,7 +615,7 @@ Process
                     # Using AuthCodeFlow and ClientCertificate
                     If ($UseAuthCodeFlow)
                     {
-                        $tokenRequest = $AuthContext.AcquireTokenByAuthorizationCode($AuthCode["code"], $RedirectUri, $ClientAssertionCertificate)
+                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode["code"], $RedirectUri, $ClientAssertionCertificate)
                     }
                     # only with ClientCertificate
                     Else
@@ -631,7 +633,7 @@ Process
                     If ($UseAuthCodeFlow)
                     {
                         Write-Verbose -Message "AcquireToken using ClientCredential and AuthCodeFlow..."
-                        $tokenRequest = $AuthContext.AcquireTokenByAuthorizationCode($AuthCode["code"], $RedirectUri, $ClientCredential)
+                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode["code"], $RedirectUri, $ClientCredential)
                     }
                     ElseIF ($Silent)
                     {
