@@ -663,52 +663,64 @@ Process
             # acquire additional AccessToken using On-Behalf-Of flow using previous retrieved token
             If ($UseOnBehalfOfFlow)
             {
-                Write-Verbose "Starting On-Behalf-Of flow...with previously received token"
-                # create UserAssertation
-                If ($UseImplicitFlow)
+                # workaround as it seems to take a bit until the object was updated
+                While ($tokenRequest.Status -eq 'WaitingForActivation')
                 {
-                    $token = $tokenRequest["#access_token"]
+                    Write-Verbose "Status is still WaitingForActivation. Sleeping for a second..."
+                    sleep -Seconds 1
                 }
-                Else
+
+                If (-not $tokenRequest.IsFaulted)
                 {
-                    # workaround as it seems to take a bit until the object was updated
-                    While ($tokenRequest.Status -eq 'WaitingForActivation')
+                    Write-Verbose "Starting On-Behalf-Of flow...with previously received token"
+                    # create UserAssertation
+                    If ($UseImplicitFlow)
                     {
-                        Write-Verbose "Status is still WaitingForActivation. Sleeping for a second..."
-                        sleep -Seconds 1
-                    }
-                    #$tokenRequest.Result
-                    #pause
-                    If (-not [System.String]::IsNullOrEmpty($tokenRequest.Result))
-                    {
-                        $token = $tokenRequest.Result.AccessToken
+                        $token = $tokenRequest["#access_token"]
                     }
                     Else
                     {
-                        $token = $tokenRequest.AccessToken
+                        # workaround as it seems to take a bit until the object was updated
+                        While ($tokenRequest.Status -eq 'WaitingForActivation')
+                        {
+                            Write-Verbose "Status is still WaitingForActivation. Sleeping for a second..."
+                            sleep -Seconds 1
+                        }
+                        #$tokenRequest.Result
+                        #pause
+                        If (-not [System.String]::IsNullOrEmpty($tokenRequest.Result))
+                        {
+                            $token = $tokenRequest.Result.AccessToken
+                        }
+                        Else
+                        {
+                            $token = $tokenRequest.AccessToken
+                        }
                     }
-                }
 
-                $userAssertion = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserAssertion($token,'urn:ietf:params:oauth:grant-type:jwt-bearer',$UserID)
-                    
-                If ($ClientSecretOBO)
-                {
-                    
-                    # create Clientcredential for OBO app
-                    $ClientCredentialOBO = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential($ClientIdOBO,$ClientSecretOBO)
+                    $userAssertion = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.UserAssertion($token,'urn:ietf:params:oauth:grant-type:jwt-bearer',$UserID)
+
+                    If ($ClientSecretOBO)
+                    {
+                        Write-Verbose -Message "AcquireToken using ClientSecret..."
+                        # create Clientcredential for OBO app
+                        $ClientCredentialOBO = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential($ClientIdOBO,$ClientSecretOBO)
+                    }
+                    ElseIf ($CertificateOBO)
+                    {
+                        Write-Verbose -Message "AcquireToken using ClientCertificate..."
+                        # create Clientcredential for OBO app
+                        $ClientCredentialOBO = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential($ClientIdOBO,$CertificateOBO)
+                    }
+                    Else
+                    {
+                        Write-Output "Cancle OBO request due to missing data (no ClientSecretOBO or CertificateOBO)..."
+                        break
+                    }
+
+                    $OBOTokenRequest = $AuthContext.AcquireTokenAsync($ResourceOBO, $ClientCredentialOBO,$userAssertion)
+                    $OBORequest = $OBOTokenRequest
                 }
-                ElseIf ($CertificateOBO)
-                {
-                    # create Clientcredential for OBO app
-                    $ClientCredentialOBO = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.ClientCredential($ClientIdOBO,$CertificateOBO)
-                }
-                Else
-                {
-                    Write-Output "Cancle OBO request due to missing data (no ClientSecretOBO or CertificateOBO)..."
-                    break
-                }
-                $OBOTokenRequest = $AuthContext.AcquireTokenAsync($ResourceOBO, $ClientCredentialOBO,$userAssertion)
-                $OBORequest = $OBOTokenRequest
             }
         }
         catch
@@ -760,7 +772,7 @@ End
                 $tokenRequest
                 If ($ParseToken)
                 {
-                    Write-Verbose "Parsing AccessToken"
+                    Write-Verbose "Parsing AccessToken from ImplicitFlow"
                     Parse-JWTtoken $tokenRequest["#access_token"] -Verbose:$false
                 }
             }
@@ -769,6 +781,7 @@ End
                 # return result, when failed
                 Write-Verbose "Something went wrong: returning result of request..."
                 $tokenRequest
+                break
             }
             Else
             {
@@ -779,7 +792,7 @@ End
                     $tokenRequest.Result
                     If ($ParseToken)
                     {
-                        Write-Verbose "Parsing AccessToken"
+                        Write-Verbose "Parsing AccessToken from result"
                         Parse-JWTtoken $tokenRequest.Result.AccessToken -Verbose:$false
                     }
                 }
@@ -799,29 +812,36 @@ End
                 # workaround as it seems to take a bit until the object was updated
                 While ($OBORequest.Status -eq 'WaitingForActivation')
                 {
-                    Write-Verbose "Status is still WaitingForActivation. Sleeping for a second..."
+                    Write-Verbose "Status is still WaitingForActivation for OBO. Sleeping for a second..."
                     sleep -Seconds 1
                 }
-                # return OBO token
-                Write-Verbose "Return OBOAccessToken..."
-                # return token
-                Write-Verbose "Return AccessToken..."
-                If (-not [System.String]::IsNullOrEmpty($OBORequest.Result))
+                If ($OBORequest.IsFaulted)
                 {
-                    $OBORequest.Result
-                    If ($ParseToken)
-                    {
-                        Write-Verbose "Parsing AccessToken"
-                        Parse-JWTtoken $OBORequest.Result.AccessToken -Verbose:$false
-                    }
+                    # return result, when failed
+                    Write-Verbose "Something went wrong for OBO flow: returning result of request..."
+                    $OBORequest
                 }
                 Else
                 {
-                    $OBORequest
-                    If ($ParseToken)
+                    # return OBO token
+                    Write-Verbose "Return OBOAccessToken..."
+                    If (-not [System.String]::IsNullOrEmpty($OBORequest.Result))
                     {
-                        Write-Verbose "Parsing AccessToken"
-                        Parse-JWTtoken $OBORequest.AccessToken -Verbose:$false
+                        $OBORequest.Result
+                        If ($ParseToken)
+                        {
+                            Write-Verbose "Parsing OBOAccessToken"
+                            Parse-JWTtoken $OBORequest.Result.AccessToken -Verbose:$false
+                        }
+                    }
+                    Else
+                    {
+                        $OBORequest
+                        If ($ParseToken)
+                        {
+                            Write-Verbose "Parsing OBOAccessToken"
+                            Parse-JWTtoken $OBORequest.AccessToken -Verbose:$false
+                        }
                     }
                 }
             }
