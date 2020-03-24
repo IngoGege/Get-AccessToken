@@ -238,9 +238,9 @@ Begin
             break
         }
 
-        If ($UseAuthCodeFlow -and -not $Tenant)
+        If (($UseAuthCodeFlow -and -not $Tenant) -or ($UseImplicitFlow -and -not $Tenant))
         {
-            Write-Output "Tenant is required for AuthCodeFlow..."
+            Write-Output "Tenant is required for AuthCodeFlow/UseImplicitFlow..."
             break
         }
     }
