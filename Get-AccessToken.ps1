@@ -199,7 +199,7 @@ Begin
         {
             If([System.String]::IsNullOrEmpty($ADALPath))
             {
-                $ADALPath = (Get-ChildItem -Path ($env:LOCALAPPDATA +'\Apps\2.0') -Recurse -Include Microsoft.IdentityModel.Clients.ActiveDirectory.dll | Select-Object -First 1)
+                $ADALPath = [System.IO.Path]::Combine((Get-Module -Name ExchangeOnlineManagement -ListAvailable -Verbose:$false | select -First 1).ModuleBase,"Microsoft.IdentityModel.Clients.ActiveDirectory.dll")
             }
             Import-Module $ADALPath -Force
         }
@@ -376,14 +376,14 @@ Begin
             foreach ($Param in $Params)
             {
                 Write-Verbose -Message "$($Param.Key)=$($Param.Value)"
-                $Url_String += '&' + $Param.Key + '=' + [System.Web.HttpUtility]::UrlEncode($Param.Value)
+                $Url_String += "&" + $Param.Key + '=' + [System.Web.HttpUtility]::UrlEncode($Param.Value)
             }
 
             If ($Redirect_Uri)
             {
                 $Url_String += "&Redirect_Uri=$Redirect_Uri"
             }
-            $Url_String = $Url_String.TrimStart('&')
+            $Url_String = $Url_String.TrimStart("&")
             Write-Verbose "RedirectURI:$($Redirect_Uri)"
             Write-Verbose "URL:$($Url_String)"
             $Response = Show-OAuthWindow -Url $($AuthUrl + $Url_String) -Response_Mode $Response_Mode
