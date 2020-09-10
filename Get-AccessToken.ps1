@@ -4,7 +4,7 @@
 
 Created by: https://ingogegenwarth.wordpress.com/
 Version:    1.0.0.0 42 ("What do you get if you multiply six by nine?")
-Changed:    07.03.2019
+Changed:    10.09.2020
 
 .LINK
 https://docs.microsoft.com/en-us/azure/active-directory/develop/
@@ -199,7 +199,8 @@ Begin
         {
             If([System.String]::IsNullOrEmpty($ADALPath))
             {
-                $ADALPath = [System.IO.Path]::Combine((Get-Module -Name ExchangeOnlineManagement -ListAvailable -Verbose:$false | select -First 1).ModuleBase,"Microsoft.IdentityModel.Clients.ActiveDirectory.dll")
+                #$ADALPath = [System.IO.Path]::Combine((Get-Module -Name ExchangeOnlineManagement -ListAvailable -Verbose:$false | select -First 1).ModuleBase,"Microsoft.IdentityModel.Clients.ActiveDirectory.dll")
+                $ADALPath = (Get-Module -Name ExchangeOnlineManagement -ListAvailable -Verbose:$false | select -First 1).FileList -match "Microsoft.IdentityModel.Clients.ActiveDirectory.dll"
             }
             Import-Module $ADALPath -Force
         }
