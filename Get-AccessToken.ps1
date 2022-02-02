@@ -322,7 +322,7 @@ Begin
             $Body = @{}
             $Url_String = ''
 
-            Function Show-OAuthWindow
+            Function Show-OAuthWindowRetired
             {
                 [CmdletBinding()]
                 param(
@@ -366,9 +366,52 @@ Begin
                 foreach($key in $queryOutput.Keys){
                     $output["$key"] = $queryOutput[$key]
                 }
-    
+
                 $output
             }
+
+            function Show-OAuthWindow {
+                [CmdletBinding()]
+                param (
+                    [System.Uri]
+                    $Url
+
+                )
+                ## Start Code Attribution
+                ## Show-AuthWindow function is the work of the following Authors and should remain with the function if copied into other scripts
+                ## https://foxdeploy.com/2015/11/02/using-powershell-and-oauth/
+                ## https://blogs.technet.microsoft.com/ronba/2016/05/09/using-powershell-and-the-office-365-rest-api-with-oauth/
+                ## End Code Attribution
+                Add-Type -AssemblyName System.Web
+                Add-Type -AssemblyName System.Windows.Forms
+
+                $form = New-Object -TypeName System.Windows.Forms.Form -Property @{ Width = 440; Height = 640 }
+                $web = New-Object -TypeName System.Windows.Forms.WebBrowser -Property @{ Width = 420; Height = 600; Url = ($url) }
+                $Navigated = {
+                    if ( ($web.DocumentText -match "document.location.replace") -or ($web.Url.AbsoluteUri -match "code=[^&]*") ) {
+                        $Script:oAuthCode = [regex]::match($web.DocumentText, "code=(.*?)\\u0026").Groups[1].Value
+                        if ([System.String]::IsNullOrEmpty($Script:oAuthCode))
+                        {
+                            if ($web.Url.AbsoluteUri -match "error=[^&]*")
+                            {
+                                $Script:oAuthCode = [System.Web.HttpUtility]::UrlDecode($web.Url.AbsoluteUri)
+                            }
+                            else
+                            {
+                                $Script:oAuthCode = [System.Web.HttpUtility]::ParseQueryString($web.Url.AbsoluteUri)[0]
+                            }
+                        }
+                        $form.Close();
+                    }
+                }
+                $web.ScriptErrorsSuppressed = $true
+                $web.Add_Navigated($Navigated)
+                $form.Controls.Add($web)
+                $form.Add_Shown( { $form.Activate() })
+                $form.ShowDialog() | Out-Null
+                return $Script:oAuthCode
+            }
+
         }
 
         Process
@@ -387,12 +430,12 @@ Begin
             $Url_String = $Url_String.TrimStart("&")
             Write-Verbose "RedirectURI:$($Redirect_Uri)"
             Write-Verbose "URL:$($Url_String)"
-            $Response = Show-OAuthWindow -Url $($AuthUrl + $Url_String) -Response_Mode $Response_Mode
+            $Response = Show-OAuthWindow -Url $($AuthUrl + $Url_String) #-Response_Mode $Response_Mode
         }
 
         End
         {
-            If ($Response.Count -gt 0)
+            <##If ($Response.Count -gt 0)
             {
                 $Response
             }
@@ -401,7 +444,15 @@ Begin
                 Write-Verbose "Error occured"
                 Add-Type -AssemblyName System.Web
                 [System.Web.HttpUtility]::UrlDecode($result.Url.OriginalString)
+            }##>
+            # if error occured stop
+            if ($Response -match 'error_description')
+            {
+                Write-Host "Error requesting Auth Code:$($authCode)"
             }
+
+            $Response
+
         }
     }
 
@@ -560,9 +611,15 @@ Process
                     $AuthCodeParams.Add('Prompt',$AuthPrompt)
 
                     $AuthCode = Get-AADAuth @AuthCodeParams
-                    Write-Verbose "AuthCode:$($AuthCode["code"])"
+                    
+                    if ($AuthCode -match 'error_description')
+                    {
+                        Write-Host -fore red "Couldn't get AuthCode."
+                        break
+                    }
+                    #Write-Verbose "AuthCode:$($AuthCode["code"])"
 
-                    If ( -not "System.Collections.Hashtable" -eq $AuthCode.GetType().FullName)
+                    <##If ( -not "System.Collections.Hashtable" -eq $AuthCode.GetType().FullName)
                     {
                         Write-Host -fore red "Couldn't get AuthCode. Error:"
                         $AuthCode
@@ -577,7 +634,7 @@ Process
                     Else
                     {
                         Write-Verbose "AuthCode:$($AuthCode["code"])"
-                    }
+                    }##>
                 }
 
                 # Acquire token without any flow for give UserID
@@ -616,7 +673,7 @@ Process
                     # Using AuthCodeFlow and ClientCertificate
                     If ($UseAuthCodeFlow)
                     {
-                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode["code"], $RedirectUri, $ClientAssertionCertificate)
+                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode, $RedirectUri, $ClientAssertionCertificate)
                     }
                     # only with ClientCertificate
                     Else
@@ -634,7 +691,7 @@ Process
                     If ($UseAuthCodeFlow)
                     {
                         Write-Verbose -Message "AcquireToken using ClientCredential and AuthCodeFlow..."
-                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode["code"], $RedirectUri, $ClientCredential)
+                        $tokenRequest = $AuthContext.$AcquireByAuthCode($AuthCode, $RedirectUri, $ClientCredential)
                     }
                     ElseIF ($Silent)
                     {
